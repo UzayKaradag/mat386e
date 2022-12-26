@@ -1,4 +1,4 @@
-import urllib.request
+import requests
 import json
 
 
@@ -29,4 +29,13 @@ def extract_covid_data():
     """
     
     #Your Code Here
-    return []
+    url = 'https://covid.ourworldindata.org/data/owid-covid-data.json'
+
+    response = requests.get(url)
+    json_data = json.loads(response.text)
+
+    raw_data = []
+    for entry in json_data.values():
+        raw_data.append(entry)
+
+    return raw_data

@@ -50,10 +50,11 @@ if __name__ == '__main__':
     Hint**: You may convert extracted data to RDD after that convert it to Dataframe.
     
     """
-	datetime_date = date_converter()
-	sc, spark = get_spark_utils()
+    datetime_date = date_converter()
+    sc, spark = get_spark_utils()
 
-	#Your Code Here
-	
-	print("finish")
-	
+    #Your Code Here
+    raw_data = extract_covid_data()
+    raw_data_df = spark.createDataFrame(raw_data)
+    
+    covid_info, country_info = transform_data(raw_data_df, datetime_date=datetime_date)

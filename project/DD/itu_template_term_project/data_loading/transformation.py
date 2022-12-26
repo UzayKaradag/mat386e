@@ -1,4 +1,24 @@
 from pyspark.sql.functions import map_concat, lit, create_map, explode, col
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
+
+
+def get_spark_utils():
+    """
+    !!!DO NOT TOUCH!!!
+    This function returns spark context object and spark session object.
+    These are the entry point into all functionality in Spark.
+    :return: SparkContext, SparkSession
+    """
+    conf = SparkConf().setAppName("Covid"). \
+        set("spark.mongodb.input.uri", "mongodb://127.0.0.1"). \
+        set("spark.mongodb.output.uri", "mongodb://127.0.0.1"). \
+        set("spark.jars.packages", "org.mongodb.spark:mongo-spark-connector_2.12:3.0.1"). \
+        set("spark.sql.debug.maxToStringFields", 1000)
+    spark = SparkSession.builder.master("local[*]").config(conf=conf).getOrCreate()
+    sc = spark.sparkContext
+    return sc, spark
+
 
 
 def generate_covid_info(raw_data_df):
@@ -37,6 +57,14 @@ def generate_covid_info(raw_data_df):
     :return: Dataframe
     """
     #Your Code Here
+    sc, spark = get_spark_utils()
+    raw_data_df_exploded =  raw_data_df.select(raw_data_df.location, explode(raw_data_df.data))
+    raw_data_df_exploded = raw_data_df_exploded.withColumn("location_map",create_map(lit("location"),col("location"))).drop("location")
+    data_map = raw_data_df_exploded.select(map_concat("col", "location_map").alias("data_map"))
+    data_map_list = data_map.select('data_map').rdd.flatMap(lambda x: x).collect()
+    covid_info = spark.read.json(sc.parallelize(data_map_list)).na.fill('')
+    
+    return covid_info
 
 def generate_country_info(raw_data_df):
     """
@@ -46,6 +74,9 @@ def generate_country_info(raw_data_df):
     :return: Dataframe
     """
     #Your Code Here
+    country_info = raw_data_df.drop("data")
+
+    return country_info
 
 
 def transform_data(covid_data_rdd, datetime_date=None):
@@ -126,4 +157,13 @@ def transform_data(covid_data_rdd, datetime_date=None):
     """
     
     #Your Code Here
+    covid_info = generate_covid_info(covid_data_rdd)
+    country_info = generate_country_info(covid_data_rdd)
+
+    if(datetime_date == None):
+        return covid_info, country_info
+    else:
+        date_time = datetime_date.strftime("%Y-%m-%d")
+        covid_info_on_date = covid_info.where(covid_info.date == date_time)
+        return covid_info_on_date, country_info        
         
